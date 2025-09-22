@@ -1,0 +1,15 @@
+{
+  "name": "crud-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "NODE_ENV=development node app.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "openai": "^4.55.0"
+  }
+}

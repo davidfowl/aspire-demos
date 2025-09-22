@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quote Generator</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Developer Quote Generator</h1>
+    <p class="subtitle">Inspirational, concise programming productivity quotes from your backend model.</p>
+  </header>
+  <main class="app-main">
+    <section class="quote-card" aria-live="polite" aria-busy="false">
+      <div id="quoteText" class="quote-text placeholder">Press Generate to fetch a quote...</div>
+      <div class="quote-actions">
+        <button id="generateBtn" class="primary" aria-label="Generate a new quote">Generate</button>
+        <button id="copyBtn" class="secondary" disabled aria-label="Copy quote to clipboard">Copy</button>
+      </div>
+      <div class="status-row">
+        <span id="status" class="status" role="status"></span>
+        <span class="hint">Shortcut: ⏎ or Ctrl/⌘+Enter</span>
+      </div>
+    </section>
+  </main>
+  <footer class="app-footer">
+    <small>Powered by GitHub Models • Demo</small>
+  </footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

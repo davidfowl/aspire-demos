@@ -1,0 +1,7 @@
+:root { --color-bg: #f8fafc; --color-surface: #ffffff; --color-border: #d9e0e7; --color-text: #1f2933; --color-text-muted:#5b6470; --color-accent:#2563eb; --color-accent-alt:#0891b2; --radius-lg: 16px; --shadow-sm:0 1px 2px rgba(0,0,0,.06); --shadow-md:0 4px 8px -2px rgba(0,0,0,.06),0 2px 4px -2px rgba(0,0,0,.04); }
+@media (prefers-color-scheme: dark) { :root { --color-bg:#0f1720; --color-surface:#1c2630; --color-border:#2d3a45; --color-text:#ecf1f5; --color-text-muted:#8ea0b2; --shadow-sm:0 1px 2px rgba(0,0,0,.5); --shadow-md:0 4px 10px -2px rgba(0,0,0,.55),0 2px 4px -2px rgba(0,0,0,.5); } }
+html, body, #root { background: var(--color-bg); color: var(--color-text); margin:0; padding:0; min-height:100vh; }
+body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing: antialiased; display:flex; justify-content:center; align-items:flex-start; width:100%; }
+#root { flex:1; display:flex; justify-content:center; width:100%; }
+/* optional subtle gradient overlay removed if not needed */
+body::before { content:""; position:fixed; inset:0; pointer-events:none; background:transparent; }
