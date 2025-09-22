@@ -99,7 +99,7 @@ public class GithubWebHook : IBindableFromHttpContext<GithubWebHook>
         }
         var signature = signatureHeader[prefix.Length..];
         var hash = HMACSHA256.HashData(secret, payload);
-        var hex = Convert.ToHexString(hash).ToLowerInvariant();
+        var hex = Convert.ToHexStringLower(hash);
         return CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(hex), Encoding.ASCII.GetBytes(signature));
     }
 }
