@@ -18,14 +18,49 @@ from __future__ import annotations
 import os
 import datetime
 import logging
-from typing import Any
+from typing import Any, Callable, Mapping
 
 from mcp.server.fastmcp import FastMCP
 from opentelemetry import trace, metrics
+from opentelemetry.context import Context
 
-# Get tracer and meter - let Aspire handle the provider setup
+# Explicit tracer & meter (manual instrumentation since auto-instrumentation not in use)
 tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
+
+import functools
+
+
+def with_span(name: str | None = None, attr_fn: Callable[..., Mapping[str, Any]] | None = None):
+    """Decorator to wrap a function call in a new span.
+
+    Parameters:
+        name: Optional explicit span name (defaults to function __name__).
+        attr_fn: Optional callable receiving the original *args/**kwargs and returning
+                 a mapping of initial span attributes.
+    Usage:
+        @mcp.tool()
+        @with_span("tool.echo", attr_fn=lambda message: {"tool.name": "echo", "message.length": len(message)})
+        def echo(message: str) -> str:
+            ...
+    """
+    def decorator(fn):
+        span_name = name or fn.__name__
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            # Start a ROOT span (no parent) by supplying a fresh empty Context()
+            with tracer.start_as_current_span(span_name, context=Context()) as span:
+                if attr_fn:
+                    try:
+                        attrs = attr_fn(*args, **kwargs) or {}
+                        for k, v in attrs.items():
+                            span.set_attribute(k, v)
+                    except Exception as exc:  # defensive: don't break tool on attr errors
+                        logger.warning("attr_fn for %s raised %s", span_name, exc)
+                return fn(*args, **kwargs)
+        return wrapper
+    return decorator
 
 # Create some custom metrics
 tool_invocation_counter = meter.create_counter(
@@ -53,37 +88,34 @@ mcp = FastMCP(
 # Tools
 # -----------------
 @mcp.tool()
+@with_span("tool.echo", attr_fn=lambda message: {"tool.name": "echo", "message.length": len(message)})
 def echo(message: str) -> str:
     """Echo the provided message."""
-    with tracer.start_as_current_span("echo_tool") as span:
-        span.set_attribute("message.length", len(message))
-        span.set_attribute("tool.name", "echo")
-        tool_invocation_counter.add(1, {"tool": "echo"})
-        logger.info(f"Echo tool invoked with message: {message[:50]}...")
-        return message
+    tool_invocation_counter.add(1, {"tool": "echo"})
+    logger.info(f"Echo tool invoked with message: {message[:50]}...")
+    return message
 
 
 @mcp.tool()
+@with_span("tool.add", attr_fn=lambda a, b: {"tool.name": "add", "operand.a": a, "operand.b": b})
 def add(a: float, b: float) -> dict[str, float]:
     """Add two numbers and return the sum."""
-    with tracer.start_as_current_span("add_tool") as span:
-        span.set_attribute("operand.a", a)
-        span.set_attribute("operand.b", b)
-        span.set_attribute("tool.name", "add")
-        result = a + b
-        span.set_attribute("result", result)
-        tool_invocation_counter.add(1, {"tool": "add"})
-        logger.info(f"Add tool invoked: {a} + {b} = {result}")
-        return {"a": a, "b": b, "sum": result}
+    result = a + b
+    trace.get_current_span().set_attribute("result", result)
+    tool_invocation_counter.add(1, {"tool": "add"})
+    logger.info(f"Add tool invoked: {a} + {b} = {result}")
+    return {"a": a, "b": b, "sum": result}
 
 
 @mcp.tool()
 def now() -> dict[str, Any]:
     """Return current UTC time info."""
-    with tracer.start_as_current_span("now_tool") as span:
-        span.set_attribute("tool.name", "now")
+    # Need dynamic attributes computed inside span; use manual span here for clarity.
+    # Root span for this tool invocation
+    with tracer.start_as_current_span("tool.now", context=Context()) as span:
         dt = datetime.datetime.utcnow()
         result = {"iso": dt.isoformat() + "Z", "epoch": dt.timestamp()}
+        span.set_attribute("tool.name", "now")
         span.set_attribute("timestamp.iso", result["iso"])
         span.set_attribute("timestamp.epoch", result["epoch"])
         tool_invocation_counter.add(1, {"tool": "now"})
@@ -95,34 +127,32 @@ def now() -> dict[str, Any]:
 # Resources
 # -----------------
 @mcp.resource("pymcp://welcome")
+@with_span("resource.welcome", attr_fn=lambda: {"resource.uri": "pymcp://welcome"})
 def welcome_resource() -> str:
-    with tracer.start_as_current_span("welcome_resource") as span:
-        span.set_attribute("resource.uri", "pymcp://welcome")
-        logger.info("Welcome resource accessed")
-        return "Welcome to the Python MCP server. Use tools: echo, add, now."
+    logger.info("Welcome resource accessed")
+    return "Welcome to the Python MCP server. Use tools: echo, add, now."
 
 
 # -----------------
 # Prompts
 # -----------------
 @mcp.prompt()
+@with_span("prompt.greeting", attr_fn=lambda name: {"prompt.name": "greeting", "user.name": name})
 def greeting(name: str) -> list[dict[str, str]]:  # FastMCP prompt format
-    with tracer.start_as_current_span("greeting_prompt") as span:
-        span.set_attribute("prompt.name", "greeting")
-        span.set_attribute("user.name", name)
-        logger.info(f"Greeting prompt invoked for: {name}")
-        return [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"Say hello to {name}."},
-        ]
+    logger.info(f"Greeting prompt invoked for: {name}")
+    return [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": f"Say hello to {name}."},
+    ]
 
 
 def main() -> None:
-    logger.info("Starting PyMCP Server with OpenTelemetry instrumentation")
+    logger.info("Starting PyMCP Server with OpenTelemetry instrumentation (manual spans)")
     logger.info(f"OTEL_EXPORTER_OTLP_ENDPOINT: {os.environ.get('OTEL_EXPORTER_OTLP_ENDPOINT', 'Not set')}")
     logger.info(f"OTEL_SERVICE_NAME: {os.environ.get('OTEL_SERVICE_NAME', 'Not set')}")
-    
-    with tracer.start_as_current_span("server_startup") as span:
+
+    # Root span for server startup
+    with tracer.start_as_current_span("server.startup", context=Context()) as span:
         span.set_attribute("server.name", "PyMcpServer")
         span.set_attribute("server.transport", "streamable-http")
         mcp.run(transport="streamable-http")
