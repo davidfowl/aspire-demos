@@ -1,18 +1,3 @@
-"""Minimal Python MCP server for Aspire integration.
-
-Run (stdio for local inspector):
-  python main.py
-
-Expose Streamable HTTP (recommended) using FastMCP's built-in runner:
-  python main.py --transport streamable-http --port 8111
-
-This server demonstrates:
- - Tools (echo, add)
- - Prompts
- - Resources (static text)
- - OpenTelemetry instrumentation with OTLP export
-"""
-
 from __future__ import annotations
 
 import os
