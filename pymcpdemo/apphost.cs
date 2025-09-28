@@ -17,7 +17,8 @@ var pyMcpServer = builder.AddPythonApp(
     )
     .WithHttpEndpoint(env: "PORT")
     .WithUrl("/mcp", "Mcp Server")
-    .WithVsCodeMcpUrl();
+    .WithVsCodeMcpUrl()
+    .WithOtlpExporter();
 
 tunnel.WithReference(pyMcpServer, allowAnonymous: true);
 

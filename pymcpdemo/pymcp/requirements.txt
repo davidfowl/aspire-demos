@@ -1,2 +1,4 @@
 mcp==1.14.0
+opentelemetry-distro[otlp]
+opentelemetry-instrumentation
 anyio
